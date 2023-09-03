@@ -1,10 +1,10 @@
-import gym
-from gym.spaces import Discrete, Box
+import gymnasium as gym
+from gymnasium.spaces import Discrete, Box
 
 import numpy as np
 
-from sample_factory.algorithms.utils.spaces.discretized import Discretized
-
+#from sample_factory.algo.utils.spaces.discretized import Discretized
+from sample_factory.algo.utils.spaces.discretized import Discretized
 
 def key_to_action_basic(key):
     from pynput.keyboard import Key

@@ -7,7 +7,7 @@ import faster_fifo
 
 import cv2
 import filelock
-import gym
+import gymnasium as gym
 from filelock import FileLock
 
 from envs.doom.doom_gym import doom_lock_file

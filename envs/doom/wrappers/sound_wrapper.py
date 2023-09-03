@@ -1,6 +1,6 @@
-import gym
+import gymnasium as gym
 import numpy as np
-from gym import spaces
+from gymnasium import spaces
 
 
 class DoomSound(gym.Wrapper):
@@ -35,7 +35,7 @@ class DoomSound(gym.Wrapper):
                 ),
             })
 
-    def reset(self):
+    def reset(self, seed=None, **kwargs):
         base_observation = self.env.reset()
         # audio = self.unwrapped.game.get_state().audio_buffer
         audio = self.unwrapped.state.audio_buffer

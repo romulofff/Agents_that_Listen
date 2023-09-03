@@ -1,23 +1,35 @@
-from gym.spaces import Discrete
+import datetime
+import os
+from os.path import join
 
-from envs.doom.action_space import doom_action_space, \
-    doom_action_space_full_discretized, doom_action_space_basic, doom_action_space_discretized_no_weap, \
-    doom_action_space_extended, doom_turn_and_attack_only
+from gymnasium.spaces import Discrete
+from sample_factory.envs.env_wrappers import (PixelFormatChwWrapper,
+                                              RecordingWrapper, ResizeWrapper,
+                                              RewardScalingWrapper,
+                                              TimeLimitWrapper)
+from sample_factory.utils.utils import log
+
+from envs.doom.action_space import (doom_action_space, doom_action_space_basic,
+                                    doom_action_space_discretized_no_weap,
+                                    doom_action_space_extended,
+                                    doom_action_space_full_discretized,
+                                    doom_turn_and_attack_only)
 from envs.doom.doom_gym import VizdoomEnv
-
 from envs.doom.doom_model import register_models
 from envs.doom.wrappers.additional_input import DoomAdditionalInput
 from envs.doom.wrappers.bot_difficulty import BotDifficultyWrapper
 from envs.doom.wrappers.multiplayer_stats import MultiplayerStatsWrapper
-from envs.doom.wrappers.observation_space import SetResolutionWrapper, resolutions
-from envs.doom.wrappers.reward_shaping import true_reward_final_position, DoomRewardShapingWrapper, \
-    REWARD_SHAPING_DEATHMATCH_V0, true_reward_frags, REWARD_SHAPING_DEATHMATCH_V1, REWARD_SHAPING_BATTLE
-from envs.doom.wrappers.scenario_wrappers.gathering_reward_shaping import DoomGatheringRewardShaping
-from sample_factory.envs.env_wrappers import ResizeWrapper, RewardScalingWrapper, TimeLimitWrapper, RecordingWrapper, \
-    PixelFormatChwWrapper
+from envs.doom.wrappers.observation_space import (SetResolutionWrapper,
+                                                  resolutions)
+from envs.doom.wrappers.reward_shaping import (REWARD_SHAPING_BATTLE,
+                                               REWARD_SHAPING_DEATHMATCH_V0,
+                                               REWARD_SHAPING_DEATHMATCH_V1,
+                                               DoomRewardShapingWrapper,
+                                               true_reward_final_position,
+                                               true_reward_frags)
+from envs.doom.wrappers.scenario_wrappers.gathering_reward_shaping import \
+    DoomGatheringRewardShaping
 from envs.doom.wrappers.sound_wrapper import DoomSound
-from sample_factory.utils.utils import log
-
 
 VIZDOOM_INITIALIZED = False
 
@@ -78,6 +90,7 @@ DOOM_ENVS = [
 def doom_env_by_name(name):
     for cfg in DOOM_ENVS:
         if cfg.name == name:
+            print("CFGGGGGGGGGGGGGGGGGGGg",cfg)
             return cfg
     raise Exception('Unknown Doom env')
 
@@ -93,6 +106,7 @@ def make_doom_env_impl(
         custom_resolution=None,
         **kwargs,
 ):
+    #print(cfg)
     skip_frames = skip_frames if skip_frames is not None else cfg.env_frameskip
 
     fps = cfg.fps if 'fps' in cfg else None
@@ -175,6 +189,30 @@ def make_doom_env_impl(
     return env
 
 
+
+def make_doom_env_from_spec(spec, _env_name, cfg, env_config, render_mode=None, **kwargs):
+    """
+    Makes a Doom environment from a DoomSpec instance.
+    _env_name is unused but we keep it, so functools.partial(make_doom_env_from_spec, env_spec) can registered
+    in Sample Factory (first argument in make_env_func is expected to be the env_name).
+    """
+
+    if "record_to" in cfg and cfg.record_to:
+        tstamp = datetime.datetime.now().strftime("%Y_%m_%d__%H_%M_%S")
+        cfg.record_to = join(cfg.record_to, f"{cfg.experiment}", tstamp)
+        if not os.path.isdir(cfg.record_to):
+            os.makedirs(cfg.record_to)
+    else:
+        cfg.record_to = None
+
+    if spec.num_agents > 1 or spec.num_bots > 0:
+        # requires multiplayer setup (e.g. at least a host, not a singleplayer game)
+        return make_doom_multiplayer_env(spec, cfg=cfg, env_config=env_config, render_mode=render_mode, **kwargs)
+    else:
+        return make_doom_env_impl(spec, cfg=cfg, env_config=env_config, render_mode=render_mode, **kwargs)
+
+
+
 def make_doom_multiplayer_env(doom_spec, cfg=None, env_config=None, **kwargs):
     skip_frames = cfg.env_frameskip
 
@@ -210,22 +248,17 @@ def make_doom_multiplayer_env(doom_spec, cfg=None, env_config=None, **kwargs):
         )
     else:
         # if we have only one agent, there's no need for multi-agent wrapper
-        from envs.doom.multiplayer.doom_multiagent_wrapper import init_multiplayer_env
+        from envs.doom.multiplayer.doom_multiagent_wrapper import \
+            init_multiplayer_env
         env = init_multiplayer_env(make_env_func, player_id=0, env_config=env_config)
 
     return env
 
 
-def make_doom_env(env_name, **kwargs):
-    ensure_initialized()
-
+def make_doom_env(env_name, cfg, env_config, render_mode, **kwargs):
+    #ensure_initialized()
     spec = doom_env_by_name(env_name)
-
-    if spec.num_agents > 1 or spec.num_bots > 0:
-        # requires multiplayer setup (e.g. at least a host, not a singleplayer game)
-        return make_doom_multiplayer_env(spec, **kwargs)
-    else:
-        return make_doom_env_impl(spec, **kwargs)
+    return make_doom_env_from_spec(spec, env_name, cfg, env_config, render_mode, **kwargs)
 
 
 def ensure_initialized():

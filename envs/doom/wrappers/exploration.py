@@ -2,7 +2,7 @@ import math
 from collections import deque
 import numpy as np
 
-import gym
+import gymnasium as gym
 
 from utils.utils import log
 

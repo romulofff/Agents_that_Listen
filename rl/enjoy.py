@@ -1,8 +1,8 @@
 import sys
 
-from sample_factory.algorithms.appo.enjoy_appo import enjoy
+from sample_factory.algo.appo.enjoy_appo import enjoy
 from rl.train import register_custom_components
-from sample_factory.algorithms.utils.arguments import arg_parser, parse_args
+from sample_factory.algo.utils.arguments import arg_parser, parse_args
 
 
 def main():

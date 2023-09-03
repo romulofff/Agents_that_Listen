@@ -5,15 +5,17 @@ import re
 import time
 from os.path import join
 from threading import Thread
+from typing import Dict, Optional, Tuple
 
 import cv2
-import gym
+import gymnasium as gym
 import numpy as np
 from filelock import FileLock, Timeout
-from gym.utils import seeding
+from gymnasium.utils import seeding
 from vizdoom.vizdoom import ScreenResolution, DoomGame, Mode, AutomapMode, SamplingRate
 
-from sample_factory.algorithms.utils.spaces.discretized import Discretized
+#from sample_factory.algo.utils.spaces.discretized import Discretized
+from sample_factory.algo.utils.spaces.discretized import Discretized
 from sample_factory.utils.utils import log, project_tmp_dir
 
 
@@ -80,17 +82,19 @@ def key_to_action_default(key):
 class VizdoomEnv(gym.Env):
 
     def __init__(self,
-                 action_space,
-                 config_file,
-                 coord_limits=None,
-                 max_histogram_length=200,
-                 show_automap=False,
-                 skip_frames=1,
-                 async_mode=False,
-                 record_to=None,
-                 sound_enabled=True,
-                 sound_sampling_rate=22050,
-                 sound_obs_num_frames=4):
+        action_space,
+        config_file,
+        coord_limits=None,
+        max_histogram_length=200,
+        show_automap=False,
+        skip_frames=1,
+        async_mode=False,
+        record_to=None,
+        render_mode: Optional[str] = None,
+        sound_enabled=True,
+        sound_sampling_rate=22050,
+        sound_obs_num_frames=4
+    ):
         self.initialized = False
 
         # essential game data
@@ -173,9 +177,13 @@ class VizdoomEnv(gym.Env):
 
         self.seed()
 
-    def seed(self, seed=None):
-        self.curr_seed = seeding.hash_seed(seed, max_bytes=4)
-        self.rng, _ = seeding.np_random(seed=self.curr_seed)
+    def seed(self, seed: Optional[int] = None):
+        """
+        Used to seed the actual Doom env.
+        If None is passed, the seed is generated randomly.
+        """
+        self.rng, self.curr_seed = seeding.np_random(seed=seed)
+        self.curr_seed = self.curr_seed % (2**32)  # Doom only supports 32-bit seeds
         return [self.curr_seed, self.rng]
 
     def calc_observation_space(self):
@@ -196,8 +204,8 @@ class VizdoomEnv(gym.Env):
 
         self.game.load_config(self.config_path)
         self.game.set_screen_resolution(self.screen_resolution)
-        self.game.set_seed(self.rng.randint(0, 2**32 - 1))
-
+        self.game.set_seed(self.curr_seed)
+        self.game.add_game_args("+snd_efx 0")
         if mode == 'algo':
             self.game.set_window_visible(False)
         elif mode == 'human' or mode == 'replay':
@@ -313,21 +321,34 @@ class VizdoomEnv(gym.Env):
         demo_path = os.path.normpath(demo_path)
         return demo_path
 
-    def reset(self):
+    def reset(self, seed=None, **kwargs) -> Tuple[np.ndarray, Dict]:
+        if "seed" in kwargs:
+            self.seed(kwargs["seed"])
+
         self._ensure_initialized()
 
+        episode_started = False
         if self.record_to is not None and not self.is_multiplayer:
             # does not work in multiplayer (uses different mechanism)
             if not os.path.exists(self.record_to):
                 os.makedirs(self.record_to)
 
-            demo_path = self.demo_path(self._num_episodes)
-            log.warning('Recording episode demo to %s', demo_path)
-            self.game.new_episode(demo_path)
-        else:
-            if self._num_episodes > 0:
-                # no demo recording (default)
-                self.game.new_episode()
+            demo_path = self.demo_path(self._num_episodes, self.record_to)
+            self.curr_demo_dir = os.path.dirname(demo_path)
+            log.warning(f"Recording episode demo to {demo_path=}")
+        
+            if len(demo_path) > 101:
+                log.error(f"Demo path {len(demo_path)=}>101, will not record demo")
+                log.error(
+                    "This seems to be a bug in VizDoom, please just use a shorter demo path, i.e. set --record_to to /tmp/doom_recs"
+                )
+            else:
+                self.game.new_episode(demo_path)
+                episode_started = True
+
+        if self._num_episodes > 0 and not episode_started:
+            # no demo recording (default)
+            self.game.new_episode()
 
         self.state = self.game.get_state()
         img = None
@@ -354,10 +375,10 @@ class VizdoomEnv(gym.Env):
 
         self._num_episodes += 1
 
-        return np.transpose(img, (1, 2, 0))
+        return np.transpose(img, (1, 2, 0)), {}  # since Gym 0.26.0, we return dict as second return value
 
     def _convert_actions(self, actions):
-        """Convert actions from gym action space to the action space expected by Doom game."""
+        """Convert actions from gymnasium action space to the action space expected by Doom game."""
 
         if self.composite_action_space:
             # composite action space with multiple subspaces
@@ -438,7 +459,11 @@ class VizdoomEnv(gym.Env):
         done = self.game.is_episode_finished()
 
         observation, done, info = self._process_game_step(self.state, done, default_info)
-        return observation, reward, done, info
+                
+        # Gym 0.26.0 changes
+        terminated = done
+        truncated = False
+        return observation, reward, terminated, truncated, info
 
     def render(self, mode='human'):
         try:
@@ -455,7 +480,7 @@ class VizdoomEnv(gym.Env):
                 img = cv2.resize(img, (render_w, render_h))
 
             if self.viewer is None:
-                from gym.envs.classic_control import rendering
+                from gymnasium.envs.classic_control import rendering
                 self.viewer = rendering.SimpleImageViewer(maxwidth=render_w)
             self.viewer.imshow(img)
             return img

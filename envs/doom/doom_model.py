@@ -3,9 +3,9 @@ from torch import nn
 import torchaudio
 import torch.nn.functional as F
 
-from sample_factory.algorithms.appo.model_utils import get_obs_shape, nonlinearity, create_standard_encoder, EncoderBase, \
-    register_custom_encoder
-from sample_factory.algorithms.utils.pytorch_utils import calc_num_elements
+from sample_factory.model.encoder import Encoder, make_img_encoder
+from sample_factory.model.model_utils import nonlinearity
+from sample_factory.algo.utils.torch_utils import calc_num_elements
 from sample_factory.utils.utils import log
 
 # Sampling rate.
@@ -19,13 +19,13 @@ from sample_factory.utils.utils import log
 # DEFAULT_FRAMESKIP = 4
 
 
-class VizdoomEncoder(EncoderBase):
+class VizdoomEncoder(Encoder):
     def __init__(self, cfg, obs_space, timing):
         super().__init__(cfg, timing)
 
-        self.basic_encoder = create_standard_encoder(cfg, obs_space, timing)
-        self.encoder_out_size = self.basic_encoder.encoder_out_size
-        obs_shape = get_obs_shape(obs_space)
+        self.basic_encoder = make_img_encoder(cfg, obs_space["obs"])
+        self.encoder_out_size = self.basic_encoder.get_out_size()
+        obs_shape = obs_space["obs"].shape
 
         self.measurements_head = None
         if 'measurements' in obs_shape:
@@ -50,7 +50,7 @@ class VizdoomEncoder(EncoderBase):
         return x
 
 
-class VizdoomSoundEncoder(EncoderBase):
+class VizdoomSoundEncoder(Encoder):
     """
     audio_encoder_type: Type of audio encoder to use (available: "logmel", "fft", "samples")
     """
@@ -64,9 +64,9 @@ class VizdoomSoundEncoder(EncoderBase):
         # self.frameskip = DEFAULT_FRAMESKIP
         self.frameskip = cfg.num_frames
 
-        self.basic_encoder = create_standard_encoder(cfg, obs_space, timing)
-        self.encoder_out_size = self.basic_encoder.encoder_out_size
-        obs_shape = get_obs_shape(obs_space)
+        self.basic_encoder = make_img_encoder(cfg, obs_space["obs"])
+        self.encoder_out_size = self.basic_encoder.get_out_size()
+        obs_shape = obs_space["obs"].shape
 
         self.sound_head = None
         if 'sound' in obs_shape:
@@ -161,12 +161,12 @@ class SimpleFFTAudioEncoder(nn.Module):
     """Very simple audio processing:
     FFT -> magnitude -> log -> subsample (maxpool) -> few linear layers
     """
-    def __init__(self, sample_rate, frameskip):
+    def __init__(self, cfg, obs_space):
         super(SimpleFFTAudioEncoder, self).__init__()
         self.num_to_subsample = 8
         # ViZDoom runs at 35 fps, but we will get frameskip number of
         # frames in total (concatenated)
-        self.num_samples = (sample_rate / 35) * frameskip
+        self.num_samples = (cfg.sampling_rate / 35) * cfg.env_frameskip
         self.num_frequencies = self.num_samples / 2
         assert int(self.num_samples) == self.num_samples
         self.num_samples = int(self.num_samples)
@@ -180,6 +180,8 @@ class SimpleFFTAudioEncoder(nn.Module):
         # Encoder (small MLP)
         self.linear1 = torch.nn.Linear(int(self.num_frequencies / self.num_to_subsample), 256)
         self.linear2 = torch.nn.Linear(256, 256)
+
+        self.encoder_out_size = 256
 
     def _torch_1d_fft_magnitude(self, x):
         """Perform 1D FFT on x with shape (batch_size, num_samples), and return magnitudes"""
@@ -210,13 +212,28 @@ class SimpleFFTAudioEncoder(nn.Module):
         return x
 
     def forward(self, x):
+        print("CALLED FORWARD")
+        print("WE'RE INSIDE THE FFT")
+        print("INPUT SHAPE:")
+        print(x.shape)
         x1 = x[:, :, 0]
         x2 = x[:, :, 1]
 
         x1 = self._encode_channel(x1)
         x2 = self._encode_channel(x2)
         x = torch.cat((x1, x2), dim=1)
+        print("OUTPUT SHAPE:")
+        print(x.shape)
         return x
+
+    def get_out_size(self) -> int:
+        return self.encoder_out_size
+
+def make_fft_encoder(cfg, obs_space) -> Encoder:
+    #print(cfg)
+    """Factory function as required by the API."""
+    return SimpleFFTAudioEncoder(cfg, obs_space)
+
 
 
 class SimpleRawSamplesEncoder(nn.Module):
@@ -316,10 +333,11 @@ class VizdoomSoundEncoderSamples(VizdoomSoundEncoder):
     def __init__(self, cfg, obs_space, timing):
         super().__init__(cfg, obs_space, timing, audio_encoder_type="samples")
 
-
+from sample_factory.algo.utils.context import global_model_factory
 def register_models():
-    register_custom_encoder('vizdoom', VizdoomEncoder)
-    register_custom_encoder('vizdoomSound', VizdoomSoundEncoder)
-    register_custom_encoder('vizdoomSoundLogMel', VizdoomSoundEncoderLogMel)
-    register_custom_encoder('vizdoomSoundFFT', VizdoomSoundEncoderFFT)
-    register_custom_encoder('vizdoomSoundSamples', VizdoomSoundEncoderSamples)
+    # register_custom_encoder('vizdoom', VizdoomEncoder)
+    # register_custom_encoder('vizdoomSound', VizdoomSoundEncoder)
+    # register_custom_encoder('vizdoomSoundLogMel', VizdoomSoundEncoderLogMel)
+    #register_custom_encoder('vizdoomSoundFFT', VizdoomSoundEncoderFFT)
+    global_model_factory().register_encoder_factory(VizdoomSoundEncoderFFT)
+    # register_custom_encoder('vizdoomSoundSamples', VizdoomSoundEncoderSamples)
