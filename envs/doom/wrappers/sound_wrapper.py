@@ -58,9 +58,9 @@ class DoomSound(gym.Wrapper):
             return obs_dict
 
     def step(self, action):
-        obs, rew, done, info = self.env.step(action)
+        obs, reward, terminated, truncated, info = self.env.step(action)
 
-        if not done:
+        if not terminated:
             audio = self.unwrapped.state.audio_buffer
             # audio = self.unwrapped.game.get_state().audio_buffer
         else:
@@ -68,11 +68,11 @@ class DoomSound(gym.Wrapper):
 
         if isinstance(obs, dict):
             obs['sound'] = audio
-            return obs, rew, done, info
+            return obs, reward, terminated, truncated, info
 
         else:
             obs_dict = {
                 'obs':obs,
                 'sound':audio
             }
-            return obs_dict, rew, done, info
+            return obs_dict, reward, terminated, truncated, info

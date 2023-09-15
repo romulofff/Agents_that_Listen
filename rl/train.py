@@ -16,7 +16,7 @@ from envs.doom.doom_utils import make_doom_env
 
 
 def parse_vizdoom_cfg(argv=None, evaluation=False):
-    print(argv)
+    # print(argv)
     parser, _ = parse_sf_args(argv=argv, evaluation=evaluation)
     # parameters specific to Doom envs
     add_doom_env_args(parser=parser)

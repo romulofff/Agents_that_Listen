@@ -214,14 +214,14 @@ class DoomRewardShapingWrapper(gym.Wrapper, RewardShapingInterface):
         return obs
 
     def step(self, action):
-        obs, rew, done, info = self.env.step(action)
+        obs, reward, terminated, truncated, info = self.env.step(action)
         if obs is None:
-            return obs, rew, done, info
+            return obs, reward, terminated, truncated, info
 
-        self.orig_env_reward += rew
+        self.orig_env_reward += reward
 
-        shaping_rew = self._parse_info(info, done)
-        rew += shaping_rew
+        shaping_rew = self._parse_info(info, terminated)
+        reward += shaping_rew
         self.total_shaping_reward += shaping_rew
 
         if self.verbose:
@@ -232,7 +232,7 @@ class DoomRewardShapingWrapper(gym.Wrapper, RewardShapingInterface):
 
             log.info(
                 'Total shaping reward is %.3f for %d (done %d)',
-                self.total_shaping_reward, player_id, done,
+                self.total_shaping_reward, player_id, terminated,
             )
 
         # remember new variable values
@@ -241,7 +241,7 @@ class DoomRewardShapingWrapper(gym.Wrapper, RewardShapingInterface):
 
         self.prev_dead = not not info.get('DEAD', 0.0)  # float -> bool
 
-        if done:
+        if terminated:
             if self.true_reward_func is None:
                 true_reward = self.orig_env_reward
             else:
@@ -249,7 +249,7 @@ class DoomRewardShapingWrapper(gym.Wrapper, RewardShapingInterface):
 
             info['true_reward'] = true_reward
 
-        return obs, rew, done, info
+        return obs, reward, terminated, truncated, info
 
     def close(self):
         self.env.unwrapped.reward_shaping_interface = None
