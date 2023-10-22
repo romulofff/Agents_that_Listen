@@ -36,7 +36,7 @@ class DoomSound(gym.Wrapper):
             })
 
     def reset(self, seed=None, **kwargs):
-        base_observation = self.env.reset()
+        base_observation, info = self.env.reset()
         # audio = self.unwrapped.game.get_state().audio_buffer
         audio = self.unwrapped.state.audio_buffer
 
@@ -48,14 +48,14 @@ class DoomSound(gym.Wrapper):
 
         if isinstance(base_observation, dict):
             base_observation['sound'] = audio
-            return base_observation
+            return base_observation, info
         else:
             obs_dict = {
                 'obs':base_observation,
                 # set to zero and run baselines
                 'sound':audio
             }
-            return obs_dict
+            return obs_dict, info
 
     def step(self, action):
         obs, reward, terminated, truncated, info = self.env.step(action)

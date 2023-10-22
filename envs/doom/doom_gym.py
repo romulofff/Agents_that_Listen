@@ -10,9 +10,10 @@ from typing import Dict, Optional, Tuple
 import cv2
 import gymnasium as gym
 import numpy as np
+import pygame
 from filelock import FileLock, Timeout
 from gymnasium.utils import seeding
-from vizdoom.vizdoom import ScreenResolution, DoomGame, Mode, AutomapMode, SamplingRate
+from vizdoom.vizdoom import ScreenResolution, DoomGame, Mode, AutomapMode, SamplingRate, DEFAULT_TICRATE
 
 #from sample_factory.algo.utils.spaces.discretized import Discretized
 from sample_factory.algo.utils.spaces.discretized import Discretized
@@ -80,7 +81,10 @@ def key_to_action_default(key):
 
 
 class VizdoomEnv(gym.Env):
-
+    metadata = {
+        "render_modes": ["human", "rgb_array"],
+        "render_fps": DEFAULT_TICRATE
+    }
     def __init__(self,
         action_space,
         config_file,
@@ -100,6 +104,9 @@ class VizdoomEnv(gym.Env):
         # essential game data
         self.game = None
         self.state = None
+        self.clock = None
+        self.isopen = True
+        self.window_surface = None
         self.curr_seed = 0
         self.rng = None
         self.skip_frames = skip_frames
@@ -206,6 +213,11 @@ class VizdoomEnv(gym.Env):
         self.game.set_screen_resolution(self.screen_resolution)
         self.game.set_seed(self.curr_seed)
         self.game.add_game_args("+snd_efx 0")
+
+        self.depth = self.game.is_depth_buffer_enabled()
+        self.labels = self.game.is_labels_buffer_enabled()
+        self.automap = self.game.is_automap_buffer_enabled()
+
         if mode == 'algo':
             self.game.set_window_visible(False)
         elif mode == 'human' or mode == 'replay':
@@ -467,27 +479,30 @@ class VizdoomEnv(gym.Env):
         truncated = False
         return observation, reward, terminated, truncated, info
 
-    def render(self, mode='human'):
-        try:
-            img = self.game.get_state().screen_buffer
-            img = np.transpose(img, [1, 2, 0])
-            if mode == 'rgb_array':
-                return img
-
-            h, w = img.shape[:2]
-            render_w = 1280
-
-            if w < render_w:
-                render_h = int(render_w * h / w)
-                img = cv2.resize(img, (render_w, render_h))
-
-            if self.viewer is None:
-                from gymnasium.envs.classic_control import rendering
-                self.viewer = rendering.SimpleImageViewer(maxwidth=render_w)
-            self.viewer.imshow(img)
-            return img
-        except AttributeError:
-            return None
+    def render(self):
+        if self.clock is None:
+            self.clock = pygame.time.Clock()
+        render_image = self.__build_human_render_image()
+        if self.render_mode is None:
+            self.render_mode="human"
+        if self.render_mode == "rgb_array":
+            return render_image
+        elif self.render_mode == "human":
+            # Transpose image (pygame wants (width, height, channels), we have (height, width, channels))
+            original_render_image = render_image.copy()
+            render_image = render_image.transpose(2, 1, 0)
+            if self.window_surface is None:
+                pygame.init()
+                pygame.display.set_caption("ViZDoom")
+                self.window_surface = pygame.display.set_mode(render_image.shape[:2])
+            surf = pygame.surfarray.make_surface(render_image)
+            self.window_surface.blit(surf, (0, 0))
+            pygame.display.update()
+            pygame.event.pump()
+            self.clock.tick(self.metadata["render_fps"])
+            return original_render_image
+        else:
+            return self.isopen
 
     def close(self):
         try:
@@ -684,3 +699,51 @@ class VizdoomEnv(gym.Env):
 
         log.info('Finishing replay')
         doom.close()
+
+    def __build_human_render_image(self):
+        """Stack all available buffers into one for human consumption"""
+        game_state = self.game.get_state()
+        valid_buffers = game_state is not None
+
+        if not valid_buffers:
+            # Return a blank image
+            num_enabled_buffers = 1 + self.depth + self.labels + self.automap
+            img = np.zeros(
+                (
+                    self.game.get_screen_height(),
+                    self.game.get_screen_width() * num_enabled_buffers,
+                    3,
+                ),
+                dtype=np.uint8,
+            )
+            return img
+
+        image_list = [game_state.screen_buffer]
+        if self.channels == 1:
+            image_list = [
+                np.repeat(game_state.screen_buffer[..., None], repeats=3, axis=2)
+            ]
+
+        if self.depth:
+            image_list.append(
+                np.repeat(game_state.depth_buffer[..., None], repeats=3, axis=2)
+            )
+
+        if self.labels:
+            # Give each label a fixed color.
+            # We need to connect each pixel in labels_buffer to the corresponding
+            # id via `value``
+            labels_rgb = np.zeros_like(image_list[0])
+            labels_buffer = game_state.labels_buffer
+            for label in game_state.labels:
+                color = LABEL_COLORS[label.object_id % 256]
+                labels_rgb[labels_buffer == label.value] = color
+            image_list.append(labels_rgb)
+
+        if self.automap:
+            automap_buffer = game_state.automap_buffer
+            if self.channels == 1:
+                automap_buffer = np.repeat(automap_buffer[..., None], repeats=3, axis=2)
+            image_list.append(automap_buffer)
+
+        return np.concatenate(image_list, axis=1)

@@ -68,6 +68,13 @@ DEATHMATCH_REWARD_SHAPING = (DoomRewardShapingWrapper, dict(reward_shaping_schem
 
 
 DOOM_ENVS = [
+    DoomSpec(
+        "doom_basic",
+        "basic.cfg",
+        Discrete(1 + 3),  # idle, left, right, attack
+        reward_scaling=0.01,
+        default_timeout=300,
+    ),
     DoomSpec('doomsound_music_multi', 'music_sound_multi.cfg', doom_action_space_basic(), 1.0),
 
     DoomSpec('doomsound_music_single', 'music_sound.cfg', doom_action_space_basic(), 1.0),
@@ -90,7 +97,6 @@ DOOM_ENVS = [
 def doom_env_by_name(name):
     for cfg in DOOM_ENVS:
         if cfg.name == name:
-            print("CFGGGGGGGGGGGGGGGGGGGg",cfg)
             return cfg
     raise Exception('Unknown Doom env')
 
