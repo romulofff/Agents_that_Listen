@@ -8,18 +8,19 @@ from rl.train import register_custom_components, parse_vizdoom_cfg
 
 
 def main():
-    env_name="doom_sound_finder"
+    env_name="doom_health_gathering_supreme_sound"
+    exp_name = "doom_health_gathering_supreme_sound"
 #    register_env(env_name,make_doom_env)
     register_custom_components()
     args = ["--algo=APPO", 
-            "--env=doom_basic", 
-            "--experiment=doom_basic2", 
-            "--train_for_env_steps=1000", 
+            f"--env={env_name}", 
+            f"--experiment={exp_name}", 
+            "--train_for_env_steps=100", 
             "--num_workers=10", 
             "--num_envs_per_worker=4",
-            "--max_num_episodes=10",
+            "--max_num_episodes=5",
             "--save_video",
-            "--video_name=doom_basic2.mp4"]
+            f"--video_name={exp_name}.mp4"]
     #parser = parse_vizdoom_cfg(argv=args)
     # parser = arg_parser()
     #cfg = parse_vizdoom_cfg(argv=["--algo=APPO", f"--env={env_name}", "--experiment=play_doom"])

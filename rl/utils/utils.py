@@ -9,6 +9,8 @@ from sf_examples.vizdoom.doom.doom_model import make_vizdoom_encoder
 # from sf_examples.vizdoom.doom.doom_utils import (DOOM_ENVS, DoomSpec,
 #                                                 make_doom_env_from_spec)
 
+from envs.doom.wrappers.scenario_wrappers.gathering_reward_shaping import \
+    DoomGatheringRewardShaping
 
 from envs.doom.doom_params import add_doom_env_args, doom_override_defaults
 from envs.doom.doom_utils import DOOM_ENVS, DoomSpec, make_doom_env_from_spec
@@ -27,11 +29,12 @@ def register_custom_doom_env(custom_timeout=300):
     # absolute path needs to be specified, otherwise Doom will look in the SampleFactory scenarios folder
     # scenario_absolute_path = join(os.path.dirname(__file__), "custom_env", "custom_doom_env.cfg")
     spec = DoomSpec(
-        "doom_sound_finder",
-        "hell_sound.cfg",  # use your custom cfg here
-        Discrete(1+3),
-        reward_scaling=0.01,
+        "doom_health_gathering_sound",
+        "health_gathering_sound.cfg",  # use your custom cfg here
+        Discrete(1+4),
+        reward_scaling=1.0,
         default_timeout=custom_timeout,
+        extra_wrappers=[(DoomGatheringRewardShaping, {})]
     )
 
     # register the env with Sample Factory

@@ -27,8 +27,6 @@ def parse_vizdoom_cfg(argv=None, evaluation=False):
     return final_cfg
 
 
-import pdb
-
 def main():
     env_name="doom_sound_finder"
 #    register_env(env_name,make_doom_env)
@@ -38,7 +36,9 @@ def main():
             "--experiment=doom_sound_finder", 
             "--train_for_env_steps=100_000_000", 
             "--num_workers=10", 
-            "--num_envs_per_worker=4"]
+            "--num_envs_per_worker=4",
+            "--render"    
+        ]
     #parser = parse_vizdoom_cfg(argv=args)
     # parser = arg_parser()
     #cfg = parse_vizdoom_cfg(argv=["--algo=APPO", f"--env={env_name}", "--experiment=play_doom"])
@@ -80,9 +80,24 @@ def main3():
     status = run_rl(cfg)
     return status
 
+def main4():
+    register_custom_components()
+    args = ["--algo=APPO", 
+            "--env=doom_health_gathering_supreme_sound", 
+            "--experiment=doom_health_gathering_supreme_sound", 
+            "--train_for_env_steps=2_000_000_000", 
+            "--num_workers=12", 
+            "--num_envs_per_worker=12",
+            "--learning_rate=0.0001",
+            "--batch_size=2048",
+            "--exploration_loss_coeff=0.01"
+        ]
+    cfg = parse_vizdoom_cfg(argv=args)
 
+    status = run_rl(cfg)
+    return status
 
 if __name__ == '__main__':
     #main()
-    sys.exit(main3())
+    sys.exit(main4())
 # python -m rl.train --algo=APPO --env=doomsound_instruction --experiment=doom_instruction --encoder_custom=vizdoomSoundFFT --train_for_env_steps=500000000 --num_workers=24 --num_envs_per_worker=20 

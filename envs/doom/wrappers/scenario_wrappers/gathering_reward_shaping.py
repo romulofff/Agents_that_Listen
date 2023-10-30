@@ -30,12 +30,14 @@ class DoomGatheringRewardShaping(gym.Wrapper):
         return self.env.reset()
 
     def step(self, action):
-        observation, reward, done, info = self.env.step(action)
+        observation, reward, terminated, truncated, info = self.env.step(action)
         self.orig_env_reward += reward
-        reward += self._reward_shaping(info, done)
+        reward += self._reward_shaping(info, terminated)
 
-        if done:
+        if terminated:
             true_reward = self.orig_env_reward
             info['true_reward'] = true_reward
 
-        return observation, reward, done, info
+        # Gym 0.26.0 changes
+        truncated = False
+        return observation, reward, terminated, truncated, info
