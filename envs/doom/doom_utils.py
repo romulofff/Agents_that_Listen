@@ -358,7 +358,7 @@ def make_doom_env_from_spec(spec, _env_name, cfg, env_config, render_mode=None, 
 
 
 
-def make_doom_multiplayer_env(doom_spec, cfg=None, env_config=None, **kwargs):
+def make_doom_multiplayer_env(doom_spec, cfg=None, env_config=None, render_mode: Optional[str] = None, **kwargs):
     skip_frames = cfg.env_frameskip
 
     if cfg.num_bots < 0:
@@ -375,9 +375,13 @@ def make_doom_multiplayer_env(doom_spec, cfg=None, env_config=None, **kwargs):
         return make_doom_env_impl(
             doom_spec,
             cfg=cfg,
-            player_id=player_id, num_agents=num_agents, max_num_players=max_num_players, num_bots=num_bots,
+            player_id=player_id,
+            num_agents=num_agents,
+            max_num_players=max_num_players,
+            num_bots=num_bots,
             skip_frames=1 if is_multiagent else skip_frames,  # multi-agent skipped frames are handled by the wrapper
             env_config=env_config,
+            render_mode=render_mode,
             **kwargs,
         )
 
@@ -390,6 +394,7 @@ def make_doom_multiplayer_env(doom_spec, cfg=None, env_config=None, **kwargs):
             make_env_func=make_env_func,
             env_config=env_config,
             skip_frames=skip_frames,
+            render_mode=render_mode,
         )
     else:
         # if we have only one agent, there's no need for multi-agent wrapper
