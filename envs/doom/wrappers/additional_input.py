@@ -84,15 +84,15 @@ class DoomAdditionalInput(gym.Wrapper):
         return obs_dict
 
     def reset(self):
-        obs = self.env.reset()
+        obs, _ = self.env.reset()
         info = self.env.unwrapped.get_info()
         obs = self._parse_info(obs, info)
-        return obs
+        return obs, info
 
     def step(self, action):
         obs, reward, terminated, truncated, info = self.env.step(action)
         if obs is None:
-            return obs, reward, terminated, info
+            return obs, reward, terminated, truncated, info
 
         obs_dict = self._parse_info(obs, info)
-        return obs_dict, reward, terminated, info
+        return obs_dict, reward, terminated, truncated, info

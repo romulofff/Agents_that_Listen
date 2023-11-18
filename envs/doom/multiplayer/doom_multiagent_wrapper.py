@@ -16,9 +16,9 @@ from filelock import FileLock
 from sample_factory.algo.utils.rl_utils import make_dones
 from sample_factory.envs.env_utils import RewardShapingInterface, get_default_reward_shaping
 from sample_factory.utils.utils import log
-from sf_examples.vizdoom.doom.doom_gym import doom_lock_file
-from sf_examples.vizdoom.doom.doom_render import concat_grid, cvt_doom_obs
-from sf_examples.vizdoom.doom.multiplayer.doom_multiagent import DEFAULT_UDP_PORT, find_available_port
+from envs.doom.doom_gym import doom_lock_file
+from envs.doom.doom_render import concat_grid, cvt_doom_obs
+from envs.doom.multiplayer.doom_multiagent import DEFAULT_UDP_PORT, find_available_port
 
 
 def retry_doom(exception_class=Exception, num_attempts=3, sleep_time=1, should_reset=False):
@@ -343,6 +343,9 @@ class MultiAgentEnv(gym.Env, RewardShapingInterface):
         if self.enable_rendering:
             self.last_obs = obs
 
+        # Obs here is a list
+        # Each object in the list is a dict
+        # The dicts contain 3 keys: obs, measurements, sound
         return obs, rew, terminated, truncated, infos
 
     # noinspection PyUnusedLocal

@@ -1,13 +1,14 @@
 import datetime
 import os
 from os.path import join
+from typing import Optional
 
 from gymnasium.spaces import Discrete
 from sample_factory.envs.env_wrappers import (PixelFormatChwWrapper,
                                               RecordingWrapper, ResizeWrapper,
                                               RewardScalingWrapper,
                                               TimeLimitWrapper)
-from sample_factory.utils.utils import log
+from sample_factory.utils.utils import debug_log_every_n
 
 from envs.doom.action_space import (doom_action_space, doom_action_space_basic,
                                     doom_action_space_discretized_no_weap,
@@ -36,10 +37,17 @@ VIZDOOM_INITIALIZED = False
 
 class DoomSpec:
     def __init__(
-            self, name, env_spec_file, action_space, reward_scaling=1.0, default_timeout=-1,
-            num_agents=1, num_bots=0,
-            respawn_delay=0, timelimit=4.0,
-            extra_wrappers=None,
+        self,
+        name,
+        env_spec_file,
+        action_space,
+        reward_scaling=1.0,
+        default_timeout=-1,
+        num_agents=1,
+        num_bots=0,
+        respawn_delay=0,
+        timelimit=4.0,
+        extra_wrappers=None,
     ):
         self.name = name
         self.env_spec_file = env_spec_file
@@ -50,7 +58,6 @@ class DoomSpec:
         # 1 for singleplayer, >1 otherwise
         self.num_agents = num_agents
 
-        # CLI arguments override this (see enjoy_rllib.py)
         self.num_bots = num_bots
 
         self.respawn_delay = respawn_delay
@@ -66,15 +73,17 @@ BATTLE_REWARD_SHAPING = (DoomRewardShapingWrapper, dict(reward_shaping_scheme=RE
 BOTS_REWARD_SHAPING = (DoomRewardShapingWrapper, dict(reward_shaping_scheme=REWARD_SHAPING_DEATHMATCH_V0, true_reward_func=true_reward_frags))
 DEATHMATCH_REWARD_SHAPING = (DoomRewardShapingWrapper, dict(reward_shaping_scheme=REWARD_SHAPING_DEATHMATCH_V1, true_reward_func=true_reward_final_position))
 
+# TODO: VERIFICAR SE SOUND_INPUT DEVERIA ESTAR SENDO PASSADO COMO EXTRA_WRAPPER
 
 DOOM_ENVS = [
-    DoomSpec('doomsound_music_multi', 'music_sound_multi.cfg', doom_action_space_basic(), 1.0),
+    DoomSpec('doomsound_music_multi', 'music_sound_multi.cfg', doom_action_space_basic(), 1.0, extra_wrappers=[SOUND_INPUT]),
 
-    DoomSpec('doomsound_music_single', 'music_sound.cfg', doom_action_space_basic(), 1.0),
+    DoomSpec('doomsound_music_single', 'music_sound.cfg', doom_action_space_basic(), 1.0, extra_wrappers=[SOUND_INPUT]),
+    DoomSpec('doomsound_finder', 'hell_sound.cfg', doom_action_space_basic(), 1.0, extra_wrappers=[SOUND_INPUT]),
 
-    DoomSpec('doomsound_instruction', 'instruction_sound.cfg', doom_action_space_basic(), 1.0),
-    DoomSpec('doomsound_once_instruction', 'instruction_once_sound.cfg', doom_action_space_basic(), 1.0),
-    DoomSpec('doomsound_memory', 'memory_sound_finder.cfg', doom_action_space_basic(), 1.0),
+    DoomSpec('doomsound_instruction', 'instruction_sound.cfg', doom_action_space_basic(), 1.0, extra_wrappers=[SOUND_INPUT]),
+    DoomSpec('doomsound_once_instruction', 'instruction_once_sound.cfg', doom_action_space_basic(), 1.0, extra_wrappers=[SOUND_INPUT]),
+    DoomSpec('doomsound_memory', 'memory_sound_finder.cfg', doom_action_space_basic(), 1.0, extra_wrappers=[SOUND_INPUT]),
 
     DoomSpec(
         "doom_health_gathering_sound",
@@ -82,7 +91,7 @@ DOOM_ENVS = [
         Discrete(1+4),
         reward_scaling=1.0,
         default_timeout=2100,
-        extra_wrappers=[(DoomGatheringRewardShaping, {})]
+        extra_wrappers=[(DoomGatheringRewardShaping, {}), SOUND_INPUT]
     ),
 
     DoomSpec(
@@ -91,7 +100,7 @@ DOOM_ENVS = [
         Discrete(1+4),
         reward_scaling=1.0,
         default_timeout=2100,
-        extra_wrappers=[(DoomGatheringRewardShaping, {})]
+        extra_wrappers=[(DoomGatheringRewardShaping, {}), SOUND_INPUT]
     ),
 
     DoomSpec(
@@ -100,7 +109,7 @@ DOOM_ENVS = [
         doom_action_space_full_discretized(with_use=True),
         1.0, int(1e9),
         num_agents=2, num_bots=0, respawn_delay=2,
-        extra_wrappers=[ADDITIONAL_INPUT, DEATHMATCH_REWARD_SHAPING],
+        extra_wrappers=[ADDITIONAL_INPUT, SOUND_INPUT, DEATHMATCH_REWARD_SHAPING ],
     ),
 
     DoomSpec(
@@ -242,45 +251,52 @@ def doom_env_by_name(name):
 
 # noinspection PyUnusedLocal
 def make_doom_env_impl(
-        doom_spec,
-        cfg=None,
-        env_config=None,
-        skip_frames=None,
-        episode_horizon=None,
-        player_id=None, num_agents=None, max_num_players=None, num_bots=0,  # for multi-agent
-        custom_resolution=None,
-        **kwargs,
+    doom_spec,
+    cfg=None,
+    env_config=None,
+    skip_frames=None,
+    episode_horizon=None,
+    player_id=None,
+    num_agents=None,
+    max_num_players=None,
+    num_bots=0,  # for multi-agent
+    custom_resolution=None,
+    render_mode: Optional[str] = None,
+    **kwargs,
 ):
-    #print(cfg)
     skip_frames = skip_frames if skip_frames is not None else cfg.env_frameskip
 
-    fps = cfg.fps if 'fps' in cfg else None
+    fps = cfg.fps if "fps" in cfg else None
     async_mode = fps == 0
 
     if player_id is None:
         env = VizdoomEnv(
-            doom_spec.action_space, doom_spec.env_spec_file, skip_frames=skip_frames, async_mode=async_mode,
-            sound_enabled=cfg.doom_sound_enabled,
-            sound_sampling_rate=cfg.sampling_rate,
-            sound_obs_num_frames=cfg.num_frames,
+            doom_spec.action_space,
+            doom_spec.env_spec_file,
+            skip_frames=skip_frames,
+            async_mode=async_mode,
+            render_mode=render_mode,
         )
     else:
         timelimit = cfg.timelimit if cfg.timelimit is not None else doom_spec.timelimit
 
         from envs.doom.multiplayer.doom_multiagent import VizdoomEnvMultiplayer
+
         env = VizdoomEnvMultiplayer(
-            doom_spec.action_space, doom_spec.env_spec_file,
-            player_id=player_id, num_agents=num_agents, max_num_players=max_num_players, num_bots=num_bots,
+            doom_spec.action_space,
+            doom_spec.env_spec_file,
+            player_id=player_id,
+            num_agents=num_agents,
+            max_num_players=max_num_players,
+            num_bots=num_bots,
             skip_frames=skip_frames,
             async_mode=async_mode,
             respawn_delay=doom_spec.respawn_delay,
             timelimit=timelimit,
-            sound_enabled=cfg.doom_sound_enabled,
-            sound_sampling_rate=cfg.sampling_rate,
-            sound_obs_num_frames=cfg.num_frames,
+            render_mode=render_mode,
         )
 
-    record_to = cfg.record_to if 'record_to' in cfg else None
+    record_to = cfg.record_to if "record_to" in cfg else None
     should_record = False
     if env_config is None:
         should_record = True
@@ -292,13 +308,14 @@ def make_doom_env_impl(
 
     env = MultiplayerStatsWrapper(env)
 
-    if num_bots > 0:
-        bot_difficulty = cfg.start_bot_difficulty if 'start_bot_difficulty' in cfg else None
-        env = BotDifficultyWrapper(env, bot_difficulty)
+    # # BotDifficultyWrapper no longer in use
+    # if num_bots > 0:
+    #     bot_difficulty = cfg.start_bot_difficulty if "start_bot_difficulty" in cfg else None
+    #     env = BotDifficultyWrapper(env, bot_difficulty)
 
     resolution = custom_resolution
     if resolution is None:
-        resolution = '256x144' if cfg.wide_aspect_ratio else '160x120'
+        resolution = "256x144" if cfg.wide_aspect_ratio else "160x120"
 
     assert resolution in resolutions
     env = SetResolutionWrapper(env, resolution)  # default (wide aspect ratio)
@@ -307,7 +324,7 @@ def make_doom_env_impl(
     if w != cfg.res_w or h != cfg.res_h:
         env = ResizeWrapper(env, cfg.res_w, cfg.res_h, grayscale=False)
 
-    log.info('Doom resolution: %s, resize resolution: %r', resolution, (cfg.res_w, cfg.res_h))
+    debug_log_every_n(50, "Doom resolution: %s, resize resolution: %r", resolution, (cfg.res_w, cfg.res_h))
 
     # randomly vary episode duration to somewhat decorrelate the experience
     timeout = doom_spec.default_timeout
@@ -316,26 +333,24 @@ def make_doom_env_impl(
     if timeout > 0:
         env = TimeLimitWrapper(env, limit=timeout, random_variation_steps=0)
 
-    pixel_format = cfg.pixel_format if 'pixel_format' in cfg else 'HWC'
-    if pixel_format == 'CHW':
+    pixel_format = cfg.pixel_format if "pixel_format" in cfg else "HWC"
+    if pixel_format == "CHW":
         env = PixelFormatChwWrapper(env)
 
     if doom_spec.extra_wrappers is not None:
         for wrapper_cls, wrapper_kwargs in doom_spec.extra_wrappers:
             env = wrapper_cls(env, **wrapper_kwargs)
 
-    if cfg.doom_sound_enabled:
-        log.debug('Sound enabled! Adding additional sound observations')
-        env = DoomSound(env)
-
     if doom_spec.reward_scaling != 1.0:
         env = RewardScalingWrapper(env, doom_spec.reward_scaling)
 
+    print("ENV IN UTILS")
+    print(env)
     return env
 
 
 
-def make_doom_env_from_spec(spec, _env_name, cfg, env_config, render_mode=None, **kwargs):
+def make_doom_env_from_spec(spec, _env_name, cfg, env_config, render_mode: Optional[str] = None, **kwargs):
     """
     Makes a Doom environment from a DoomSpec instance.
     _env_name is unused but we keep it, so functools.partial(make_doom_env_from_spec, env_spec) can registered
@@ -389,6 +404,7 @@ def make_doom_multiplayer_env(doom_spec, cfg=None, env_config=None, render_mode:
         # create a wrapper that treats multiple game instances as a single multi-agent environment
 
         from envs.doom.multiplayer.doom_multiagent_wrapper import MultiAgentEnv
+
         env = MultiAgentEnv(
             num_agents=num_agents,
             make_env_func=make_env_func,
@@ -398,8 +414,8 @@ def make_doom_multiplayer_env(doom_spec, cfg=None, env_config=None, render_mode:
         )
     else:
         # if we have only one agent, there's no need for multi-agent wrapper
-        from envs.doom.multiplayer.doom_multiagent_wrapper import \
-            init_multiplayer_env
+        from envs.doom.multiplayer.doom_multiagent_wrapper import init_multiplayer_env
+
         env = init_multiplayer_env(make_env_func, player_id=0, env_config=env_config)
 
     return env

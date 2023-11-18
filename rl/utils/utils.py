@@ -5,7 +5,7 @@ from sample_factory.algo.utils.context import (global_env_registry,
                                                global_model_factory)
 from sample_factory.envs.env_utils import register_env
 from sample_factory.utils.utils import log
-from sf_examples.vizdoom.doom.doom_model import make_vizdoom_encoder
+# from sf_examples.vizdoom.doom.doom_model import make_vizdoom_encoder
 # from sf_examples.vizdoom.doom.doom_utils import (DOOM_ENVS, DoomSpec,
 #                                                 make_doom_env_from_spec)
 
@@ -14,7 +14,7 @@ from envs.doom.wrappers.scenario_wrappers.gathering_reward_shaping import \
 
 from envs.doom.doom_params import add_doom_env_args, doom_override_defaults
 from envs.doom.doom_utils import DOOM_ENVS, DoomSpec, make_doom_env_from_spec
-from envs.doom.doom_model import make_fft_encoder, make_vizdoom_fft_encoder
+from envs.doom.doom_model import make_fft_encoder, make_vizdoom_fft_encoder, make_vizdoom_encoder
 
 # def register_custom_components():
 #     global_env_registry().register_env(
@@ -42,12 +42,6 @@ def register_custom_doom_env(custom_timeout=300):
     register_env(spec.name, make_env_func)
 
 
-def register_custom_components():
-    register_vizdoom_envs()
-    register_custom_doom_env()
-    register_vizdoom_models()
-
-
 def register_vizdoom_envs():
     for env_spec in DOOM_ENVS:
         make_env_func = functools.partial(make_doom_env_from_spec, env_spec)
@@ -56,4 +50,10 @@ def register_vizdoom_envs():
 
 def register_vizdoom_models():
     global_model_factory().register_encoder_factory(make_vizdoom_fft_encoder)
-    # global_model_factory().register_encoder_factory()
+    # global_model_factory().register_encoder_factory(make_vizdoom_encoder)
+
+
+def register_custom_components():
+    register_vizdoom_envs()
+    register_custom_doom_env()
+    register_vizdoom_models()

@@ -66,6 +66,9 @@ class DoomSound(gym.Wrapper):
         else:
             audio = np.zeros(self.observation_space['sound'].shape)
 
+        if obs is None:
+            return obs, reward, terminated, truncated, info
+        
         if isinstance(obs, dict):
             obs['sound'] = audio
             return obs, reward, terminated, truncated, info

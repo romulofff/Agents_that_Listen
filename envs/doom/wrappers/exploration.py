@@ -52,7 +52,7 @@ class ExplorationWrapper(gym.Wrapper):
         return self.env.reset()
 
     def step(self, action):
-        obs, reward, done, info = self.env.step(action)
+        obs, reward, terminated, truncated, info = self.env.step(action)
         exploration_reward = self._calc_intrinsic_reward(info)
         info['intrinsic_reward'] = info.get('intrinsic_reward', 0.0) + exploration_reward
-        return obs, reward, done, info
+        return obs, reward, terminated, truncated, info

@@ -228,18 +228,11 @@ class SimpleFFTAudioEncoder(nn.Module):
         return x
 
     def forward(self, x):
-        # print("CALLED FORWARD")
-        # print("WE'RE INSIDE THE FFT")
-        # print("INPUT SHAPE:")
-        # print(x)
         x1 = x[:, :, 0]
         x2 = x[:, :, 1]
-        # print("CHANNELS SPLITTED")
         x1 = self._encode_channel(x1)
         x2 = self._encode_channel(x2)
         x = torch.cat((x1, x2), dim=1)
-        # print("OUTPUT SHAPE:")
-        # print(x[0].shape)
         return x
 
     def get_out_size(self) -> int:
