@@ -21,34 +21,36 @@ from sample_factory.utils.utils import log
 
 
 class VizdoomEncoder(Encoder):
-    def __init__(self, cfg, obs_space, timing):
-        super().__init__(cfg, timing)
+    def __init__(self, cfg, obs_space):
+        super().__init__(cfg)
+        # TODO these parameters are fed to the audio buffer.
+        #      If they change in ViZDoom, remember to change them here!
+        # self.sample_rate = DEFAULT_SAMPLE_RATE
+        self.sample_rate = cfg.sampling_rate
+        # self.frameskip = DEFAULT_FRAMESKIP
+        self.frameskip = cfg.num_frames
 
         self.basic_encoder = make_img_encoder(cfg, obs_space["obs"])
         self.encoder_out_size = self.basic_encoder.get_out_size()
-        obs_shape = obs_space["obs"].shape
+
 
         self.measurements_head = None
-        if 'measurements' in obs_shape:
-            self.measurements_head = nn.Sequential(
-                nn.Linear(obs_shape.measurements[0], 128),
-                nonlinearity(cfg),
-                nn.Linear(128, 128),
-                nonlinearity(cfg),
-            )
-            measurements_out_size = calc_num_elements(self.measurements_head, obs_shape.measurements)
-            self.encoder_out_size += measurements_out_size
-
-        log.debug('Policy head output size: %r', self.get_encoder_out_size())
+        
 
     def forward(self, obs_dict):
-        x = self.basic_encoder(obs_dict)
+        x = self.basic_encoder(obs_dict["obs"])
 
         if self.measurements_head is not None:
             measurements = self.measurements_head(obs_dict['measurements'].float())
             x = torch.cat((x, measurements), dim=1)
 
         return x
+    
+    def get_out_size(self) -> int:
+        return self.encoder_out_size
+
+    def get_encoder_out_size(self) -> int:
+        return self.encoder_out_size
 
 
 class VizdoomSoundEncoder(Encoder):
@@ -348,6 +350,8 @@ def make_vizdoom_fft_encoder(cfg, obs_space) -> Encoder:
     """Factory function as required by the API."""
     return VizdoomSoundEncoder(cfg, obs_space, audio_encoder_type="fft")
 
+def make_vizdoom_encoder(cfg, obs_space) -> Encoder:
+    return VizdoomEncoder(cfg, obs_space)
 
 class VizdoomSoundEncoderSamples(VizdoomSoundEncoder):
     def __init__(self, cfg, obs_space, timing):
