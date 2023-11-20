@@ -31,6 +31,7 @@ def add_doom_env_args(parser):
         type=str2bool,
         help="If true render wide aspect ratio (slower but gives better FOV to the agent)",
     )
+    p.add_argument("--render_mode", default='human')
 
     # sound options
     p.add_argument('--doom_sound_enabled', default=True, type=str2bool, help='If true render wide aspect ratio (slower but gives better FOV to the agent)')
