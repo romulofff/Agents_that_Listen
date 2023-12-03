@@ -48,12 +48,14 @@ def register_vizdoom_envs():
         register_env(env_spec.name, make_env_func)
 
 
-def register_vizdoom_models():
-    global_model_factory().register_encoder_factory(make_vizdoom_fft_encoder)
-    # global_model_factory().register_encoder_factory(make_vizdoom_encoder)
+def register_vizdoom_models(sound=True):
+    if sound:
+        global_model_factory().register_encoder_factory(make_vizdoom_fft_encoder)
+    else:
+        global_model_factory().register_encoder_factory(make_vizdoom_encoder)
 
 
-def register_custom_components():
+def register_custom_components(sound=True):
     register_vizdoom_envs()
     register_custom_doom_env()
-    register_vizdoom_models()
+    register_vizdoom_models(sound=sound)
