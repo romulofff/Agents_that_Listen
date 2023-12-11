@@ -104,11 +104,29 @@ DOOM_ENVS = [
     ),
 
     DoomSpec(
+        "doom_hgs_sound_poison_disguised",
+        "hgs_audio_poison_disguised.cfg",  # use your custom cfg here
+        Discrete(1+4),
+        reward_scaling=1.0,
+        default_timeout=2100,
+        extra_wrappers=[(DoomGatheringRewardShaping, {}), SOUND_INPUT]
+    ),
+
+    DoomSpec(
         'doomsound_duel',
         'ssl2.cfg',
         doom_action_space_full_discretized(with_use=True),
         1.0, int(1e9),
         num_agents=2, num_bots=0, respawn_delay=2,
+        extra_wrappers=[ADDITIONAL_INPUT, SOUND_INPUT, DEATHMATCH_REWARD_SHAPING ],
+    ),
+
+    DoomSpec(
+        'doomsound_team',
+        'ssl2.cfg',
+        doom_action_space_full_discretized(with_use=True),
+        1.0, int(1e9),
+        num_agents=4, num_bots=2, respawn_delay=2,
         extra_wrappers=[ADDITIONAL_INPUT, SOUND_INPUT, DEATHMATCH_REWARD_SHAPING ],
     ),
 
