@@ -113,6 +113,15 @@ DOOM_ENVS = [
     ),
 
     DoomSpec(
+        "doom_hgs_audio_medikit_only_poison_disguised",
+        "hgs_audio_medikit_only_poison_disguised.cfg",  # use your custom cfg here
+        Discrete(1+4),
+        reward_scaling=1.0,
+        default_timeout=2100,
+        extra_wrappers=[(DoomGatheringRewardShaping, {}), SOUND_INPUT]
+    ),
+
+    DoomSpec(
         'doomsound_duel',
         'ssl2.cfg',
         doom_action_space_full_discretized(with_use=True),
