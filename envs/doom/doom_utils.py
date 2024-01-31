@@ -122,6 +122,25 @@ DOOM_ENVS = [
     ),
 
     DoomSpec(
+        "doom_hgs_audio_medikit_only_poison_disguised_slow_spawn",
+        "hgs_audio_medikit_only_poison_disguised_slow_spawn.cfg",  # use your custom cfg here
+        Discrete(1+4),
+        reward_scaling=1.0,
+        default_timeout=2100,
+        extra_wrappers=[(DoomGatheringRewardShaping, {}), SOUND_INPUT]
+    ),
+
+    DoomSpec(
+        "doom_hgs_audio_two_player",
+        "hgs_audio_two_player.cfg",  # use your custom cfg here
+        Discrete(1+4),
+        reward_scaling=1.0,
+        default_timeout=4200,
+        num_agents=2, num_bots=0, respawn_delay=0,
+        extra_wrappers=[(DoomGatheringRewardShaping, {}), SOUND_INPUT]
+    ),
+
+    DoomSpec(
         'doomsound_duel',
         'ssl2.cfg',
         doom_action_space_full_discretized(with_use=True),

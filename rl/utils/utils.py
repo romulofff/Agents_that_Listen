@@ -14,7 +14,7 @@ from envs.doom.wrappers.scenario_wrappers.gathering_reward_shaping import \
 
 from envs.doom.doom_params import add_doom_env_args, doom_override_defaults
 from envs.doom.doom_utils import DOOM_ENVS, DoomSpec, make_doom_env_from_spec
-from envs.doom.doom_model import make_fft_encoder, make_vizdoom_fft_encoder, make_vizdoom_encoder
+from envs.doom.doom_model import make_fft_encoder, make_vizdoom_fft_encoder, make_vizdoom_hearing_blind_encoder, make_vizdoom_encoder
 
 # def register_custom_components():
 #     global_env_registry().register_env(
@@ -48,14 +48,19 @@ def register_vizdoom_envs():
         register_env(env_spec.name, make_env_func)
 
 
-def register_vizdoom_models(sound=True):
+def register_vizdoom_models(sound=True, blind=False):
     if sound:
-        global_model_factory().register_encoder_factory(make_vizdoom_fft_encoder)
+        log.debug("USING SOUND ENCODER")
+        print("USING SOUND ENCODER")
+        if blind:
+            global_model_factory().register_encoder_factory(make_vizdoom_hearing_blind_encoder)
+        else:
+            global_model_factory().register_encoder_factory(make_vizdoom_fft_encoder)
     else:
         global_model_factory().register_encoder_factory(make_vizdoom_encoder)
 
 
-def register_custom_components(sound=True):
+def register_custom_components(sound=True, blind=False):
     register_vizdoom_envs()
     register_custom_doom_env()
-    register_vizdoom_models(sound=sound)
+    register_vizdoom_models(sound=sound, blind=blind)
