@@ -93,6 +93,24 @@ DOOM_ENVS = [
         default_timeout=2100,
         extra_wrappers=[(DoomGatheringRewardShaping, {}), SOUND_INPUT]
     ),
+    
+    DoomSpec(
+        "doom_health_gathering_sound_splitted",
+        "health_gathering_sound_splitted.cfg",  # use your custom cfg here
+        Discrete(1+4),
+        reward_scaling=1.0,
+        default_timeout=2100,
+        extra_wrappers=[(DoomGatheringRewardShaping, {}), SOUND_INPUT]
+    ),
+
+    DoomSpec(
+        "doom_health_gathering_sound_medikit_only_splitted",
+        "health_gathering_sound_medikit_only_splitted.cfg",  # use your custom cfg here
+        Discrete(1+4),
+        reward_scaling=1.0,
+        default_timeout=2100,
+        extra_wrappers=[(DoomGatheringRewardShaping, {}), SOUND_INPUT]
+    ),
 
     DoomSpec(
         "doom_health_gathering_supreme_sound",
