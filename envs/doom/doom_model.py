@@ -243,6 +243,8 @@ class SimpleFFTAudioEncoder(nn.Module):
         # self.linear1 = torch.nn.Linear(int(self.num_frequencies / self.num_to_subsample), 256)
         self.linear1 = torch.nn.Linear(int(self.num_frequencies), 256)
         self.linear2 = torch.nn.Linear(256, 256)
+        self.linear3 = torch.nn.Linear(256, 256)
+        self.linear4 = torch.nn.Linear(256, 256)
 
         self.encoder_out_size = 256
 
@@ -278,6 +280,8 @@ class SimpleFFTAudioEncoder(nn.Module):
         mags = np.swapaxes(mags, 1,2)
         x = F.relu(self.linear1(mags))
         x = F.relu(self.linear2(x))
+        x = F.relu(self.linear3(x))
+        x = F.relu(self.linear4(x))
 
         return x
 
