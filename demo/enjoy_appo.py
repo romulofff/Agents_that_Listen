@@ -9,15 +9,15 @@ from os.path import join
 import numpy as np
 import torch
 
-from sample_factory.algorithms.appo.actor_worker import transform_dict_observations
-from sample_factory.algorithms.appo.learner import LearnerWorker
-from sample_factory.algorithms.appo.model import create_actor_critic
-from sample_factory.algorithms.appo.model_utils import get_hidden_size
-from sample_factory.algorithms.utils.action_distributions import ContinuousActionDistribution
-from sample_factory.algorithms.utils.algo_utils import ExperimentStatus
-from sample_factory.algorithms.utils.arguments import parse_args, load_from_checkpoint, arg_parser
+from sample_factory.algo.appo.actor_worker import transform_dict_observations
+from sample_factory.algo.appo.learner import LearnerWorker
+from sample_factory.algo.appo.model import create_actor_critic
+from sample_factory.algo.appo.model_utils import get_hidden_size
+from sample_factory.algo.utils.action_distributions import ContinuousActionDistribution
+from sample_factory.algo.utils.algo_utils import ExperimentStatus
+from sample_factory.algo.utils.arguments import parse_args, load_from_checkpoint, arg_parser
 from rl.train import register_custom_components
-from sample_factory.algorithms.utils.multi_agent_wrapper import MultiAgentWrapper, is_multiagent_env
+from sample_factory.algo.utils.multi_agent_wrapper import MultiAgentWrapper, is_multiagent_env
 from sample_factory.envs.create_env import create_env
 from sample_factory.utils.utils import log, AttrDict
 from envs.doom.doom_utils import make_doom_env

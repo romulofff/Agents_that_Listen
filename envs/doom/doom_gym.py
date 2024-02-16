@@ -5,15 +5,18 @@ import re
 import time
 from os.path import join
 from threading import Thread
+from typing import Dict, Optional, Tuple
 
 import cv2
-import gym
+import gymnasium as gym
 import numpy as np
+import pygame
 from filelock import FileLock, Timeout
-from gym.utils import seeding
-from vizdoom.vizdoom import ScreenResolution, DoomGame, Mode, AutomapMode, SamplingRate
+from gymnasium.utils import seeding
+from vizdoom.vizdoom import ScreenResolution, DoomGame, Mode, AutomapMode, SamplingRate, DEFAULT_TICRATE
 
-from sample_factory.algorithms.utils.spaces.discretized import Discretized
+#from sample_factory.algo.utils.spaces.discretized import Discretized
+from sample_factory.algo.utils.spaces.discretized import Discretized
 from sample_factory.utils.utils import log, project_tmp_dir
 
 
@@ -78,24 +81,32 @@ def key_to_action_default(key):
 
 
 class VizdoomEnv(gym.Env):
-
+    metadata = {
+        "render_modes": ["human", "rgb_array"],
+        "render_fps": DEFAULT_TICRATE
+    }
     def __init__(self,
-                 action_space,
-                 config_file,
-                 coord_limits=None,
-                 max_histogram_length=200,
-                 show_automap=False,
-                 skip_frames=1,
-                 async_mode=False,
-                 record_to=None,
-                 sound_enabled=True,
-                 sound_sampling_rate=22050,
-                 sound_obs_num_frames=4):
+        action_space,
+        config_file,
+        coord_limits=None,
+        max_histogram_length=200,
+        show_automap=False,
+        skip_frames=1,
+        async_mode=False,
+        record_to=None,
+        render_mode: Optional[str] = None,
+        sound_enabled=True,
+        sound_sampling_rate=22050,
+        sound_obs_num_frames=4
+    ):
         self.initialized = False
 
         # essential game data
         self.game = None
         self.state = None
+        self.clock = None
+        self.isopen = True
+        self.window_surface = None
         self.curr_seed = 0
         self.rng = None
         self.skip_frames = skip_frames
@@ -173,9 +184,13 @@ class VizdoomEnv(gym.Env):
 
         self.seed()
 
-    def seed(self, seed=None):
-        self.curr_seed = seeding.hash_seed(seed, max_bytes=4)
-        self.rng, _ = seeding.np_random(seed=self.curr_seed)
+    def seed(self, seed: Optional[int] = None):
+        """
+        Used to seed the actual Doom env.
+        If None is passed, the seed is generated randomly.
+        """
+        self.rng, self.curr_seed = seeding.np_random(seed=seed)
+        self.curr_seed = self.curr_seed % (2**32)  # Doom only supports 32-bit seeds
         return [self.curr_seed, self.rng]
 
     def calc_observation_space(self):
@@ -196,7 +211,12 @@ class VizdoomEnv(gym.Env):
 
         self.game.load_config(self.config_path)
         self.game.set_screen_resolution(self.screen_resolution)
-        self.game.set_seed(self.rng.randint(0, 2**32 - 1))
+        self.game.set_seed(self.curr_seed)
+        self.game.add_game_args("+snd_efx 0")
+
+        self.depth = self.game.is_depth_buffer_enabled()
+        self.labels = self.game.is_labels_buffer_enabled()
+        self.automap = self.game.is_automap_buffer_enabled()
 
         if mode == 'algo':
             self.game.set_window_visible(False)
@@ -259,10 +279,12 @@ class VizdoomEnv(gym.Env):
             # self.game.add_game_args("+am_thingcolor_citem 00ff00")
 
         # added 2 extra line here
+        self.game.add_game_args("+snd_efx 0")
         self.game.set_sound_enabled(self.sound_enabled)
-        self.game.set_soft_sound_enabled(self.sound_enabled)
-        self.game.set_sound_sampling_freq(self.sampling_freq)
-        self.game.set_sound_observation_num_frames(self.number_of_audio_frames)
+        self.game.set_audio_buffer_enabled(self.sound_enabled)
+        self.game.set_audio_sampling_rate(self.sampling_freq)
+        self.game.set_audio_buffer_size(self.number_of_audio_frames)
+        # self.audio = self.game.is_audio_buffer_enabled()
 
         self._game_init()
         self.initialized = True
@@ -313,21 +335,34 @@ class VizdoomEnv(gym.Env):
         demo_path = os.path.normpath(demo_path)
         return demo_path
 
-    def reset(self):
+    def reset(self, seed=None, **kwargs) -> Tuple[np.ndarray, Dict]:
+        if "seed" in kwargs:
+            self.seed(kwargs["seed"])
+
         self._ensure_initialized()
 
+        episode_started = False
         if self.record_to is not None and not self.is_multiplayer:
             # does not work in multiplayer (uses different mechanism)
             if not os.path.exists(self.record_to):
                 os.makedirs(self.record_to)
 
-            demo_path = self.demo_path(self._num_episodes)
-            log.warning('Recording episode demo to %s', demo_path)
-            self.game.new_episode(demo_path)
-        else:
-            if self._num_episodes > 0:
-                # no demo recording (default)
-                self.game.new_episode()
+            demo_path = self.demo_path(self._num_episodes, self.record_to)
+            self.curr_demo_dir = os.path.dirname(demo_path)
+            log.warning(f"Recording episode demo to {demo_path=}")
+        
+            if len(demo_path) > 101:
+                log.error(f"Demo path {len(demo_path)=}>101, will not record demo")
+                log.error(
+                    "This seems to be a bug in VizDoom, please just use a shorter demo path, i.e. set --record_to to /tmp/doom_recs"
+                )
+            else:
+                self.game.new_episode(demo_path)
+                episode_started = True
+
+        if self._num_episodes > 0 and not episode_started:
+            # no demo recording (default)
+            self.game.new_episode()
 
         self.state = self.game.get_state()
         img = None
@@ -354,10 +389,10 @@ class VizdoomEnv(gym.Env):
 
         self._num_episodes += 1
 
-        return np.transpose(img, (1, 2, 0))
+        return np.transpose(img, (1, 2, 0)), {}  # since Gym 0.26.0, we return dict as second return value
 
     def _convert_actions(self, actions):
-        """Convert actions from gym action space to the action space expected by Doom game."""
+        """Convert actions from gymnasium action space to the action space expected by Doom game."""
 
         if self.composite_action_space:
             # composite action space with multiple subspaces
@@ -438,29 +473,36 @@ class VizdoomEnv(gym.Env):
         done = self.game.is_episode_finished()
 
         observation, done, info = self._process_game_step(self.state, done, default_info)
-        return observation, reward, done, info
+                
+        # Gym 0.26.0 changes
+        terminated = done
+        truncated = False
+        return observation, reward, terminated, truncated, info
 
-    def render(self, mode='human'):
-        try:
-            img = self.game.get_state().screen_buffer
-            img = np.transpose(img, [1, 2, 0])
-            if mode == 'rgb_array':
-                return img
-
-            h, w = img.shape[:2]
-            render_w = 1280
-
-            if w < render_w:
-                render_h = int(render_w * h / w)
-                img = cv2.resize(img, (render_w, render_h))
-
-            if self.viewer is None:
-                from gym.envs.classic_control import rendering
-                self.viewer = rendering.SimpleImageViewer(maxwidth=render_w)
-            self.viewer.imshow(img)
-            return img
-        except AttributeError:
-            return None
+    def render(self):
+        if self.clock is None:
+            self.clock = pygame.time.Clock()
+        render_image = self.__build_human_render_image()
+        if self.render_mode is None:
+            self.render_mode="human"
+        if self.render_mode == "rgb_array":
+            return render_image
+        elif self.render_mode == "human":
+            # Transpose image (pygame wants (width, height, channels), we have (height, width, channels))
+            original_render_image = render_image.copy()
+            render_image = render_image.transpose(2, 1, 0)
+            if self.window_surface is None:
+                pygame.init()
+                pygame.display.set_caption("ViZDoom")
+                self.window_surface = pygame.display.set_mode(render_image.shape[:2])
+            surf = pygame.surfarray.make_surface(render_image)
+            self.window_surface.blit(surf, (0, 0))
+            pygame.display.update()
+            pygame.event.pump()
+            self.clock.tick(self.metadata["render_fps"])
+            return original_render_image
+        else:
+            return self.isopen
 
     def close(self):
         try:
@@ -657,3 +699,51 @@ class VizdoomEnv(gym.Env):
 
         log.info('Finishing replay')
         doom.close()
+
+    def __build_human_render_image(self):
+        """Stack all available buffers into one for human consumption"""
+        game_state = self.game.get_state()
+        valid_buffers = game_state is not None
+
+        if not valid_buffers:
+            # Return a blank image
+            num_enabled_buffers = 1 + self.depth + self.labels + self.automap
+            img = np.zeros(
+                (
+                    self.game.get_screen_height(),
+                    self.game.get_screen_width() * num_enabled_buffers,
+                    3,
+                ),
+                dtype=np.uint8,
+            )
+            return img
+
+        image_list = [game_state.screen_buffer]
+        if self.channels == 1:
+            image_list = [
+                np.repeat(game_state.screen_buffer[..., None], repeats=3, axis=2)
+            ]
+
+        if self.depth:
+            image_list.append(
+                np.repeat(game_state.depth_buffer[..., None], repeats=3, axis=2)
+            )
+
+        if self.labels:
+            # Give each label a fixed color.
+            # We need to connect each pixel in labels_buffer to the corresponding
+            # id via `value``
+            labels_rgb = np.zeros_like(image_list[0])
+            labels_buffer = game_state.labels_buffer
+            for label in game_state.labels:
+                color = LABEL_COLORS[label.object_id % 256]
+                labels_rgb[labels_buffer == label.value] = color
+            image_list.append(labels_rgb)
+
+        if self.automap:
+            automap_buffer = game_state.automap_buffer
+            if self.channels == 1:
+                automap_buffer = np.repeat(automap_buffer[..., None], repeats=3, axis=2)
+            image_list.append(automap_buffer)
+
+        return np.concatenate(image_list, axis=1)

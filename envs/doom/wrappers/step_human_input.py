@@ -1,6 +1,6 @@
 import numpy as np
 
-import gym
+import gymnasium as gym
 
 
 # noinspection PyProtectedMember

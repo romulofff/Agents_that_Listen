@@ -1,4 +1,4 @@
-import gym
+import gymnasium as gym
 import numpy as np
 
 
@@ -49,10 +49,12 @@ class MultiplayerStatsWrapper(gym.Wrapper):
         return self.env.reset()
 
     def step(self, action):
-        obs, reward, done, info = self.env.step(action)
+        obs, reward, terminated, truncated, info = self.env.step(action)
+        # Gym 0.26.0 changes
         if obs is None:
-            return obs, reward, done, info
+            return obs, reward, terminated, truncated, info
 
-        info = self._parse_info(info, done)
+        info = self._parse_info(info, terminated)
         self.timestep += 1
-        return obs, reward, done, info
+        return obs, reward, terminated, truncated, info
+        

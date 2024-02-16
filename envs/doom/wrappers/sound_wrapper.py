@@ -1,6 +1,6 @@
-import gym
+import gymnasium as gym
 import numpy as np
-from gym import spaces
+from gymnasium import spaces
 
 
 class DoomSound(gym.Wrapper):
@@ -35,8 +35,8 @@ class DoomSound(gym.Wrapper):
                 ),
             })
 
-    def reset(self):
-        base_observation = self.env.reset()
+    def reset(self, seed=None, **kwargs):
+        base_observation, info = self.env.reset()
         # audio = self.unwrapped.game.get_state().audio_buffer
         audio = self.unwrapped.state.audio_buffer
 
@@ -48,31 +48,34 @@ class DoomSound(gym.Wrapper):
 
         if isinstance(base_observation, dict):
             base_observation['sound'] = audio
-            return base_observation
+            return base_observation, info
         else:
             obs_dict = {
                 'obs':base_observation,
                 # set to zero and run baselines
                 'sound':audio
             }
-            return obs_dict
+            return obs_dict, info
 
     def step(self, action):
-        obs, rew, done, info = self.env.step(action)
+        obs, reward, terminated, truncated, info = self.env.step(action)
 
-        if not done:
+        if not terminated:
             audio = self.unwrapped.state.audio_buffer
             # audio = self.unwrapped.game.get_state().audio_buffer
         else:
             audio = np.zeros(self.observation_space['sound'].shape)
 
+        if obs is None:
+            return obs, reward, terminated, truncated, info
+        
         if isinstance(obs, dict):
             obs['sound'] = audio
-            return obs, rew, done, info
+            return obs, reward, terminated, truncated, info
 
         else:
             obs_dict = {
                 'obs':obs,
                 'sound':audio
             }
-            return obs_dict, rew, done, info
+            return obs_dict, reward, terminated, truncated, info
