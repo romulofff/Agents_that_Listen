@@ -53,6 +53,8 @@ def register_vizdoom_models(sound=True, blind=False):
         log.debug("USING SOUND ENCODER")
         print("USING SOUND ENCODER")
         if blind:
+            log.debug("AGENT IS BLIND")
+            print("AGENT IS BLIND")
             global_model_factory().register_encoder_factory(make_vizdoom_hearing_blind_encoder)
         else:
             global_model_factory().register_encoder_factory(make_vizdoom_fft_encoder)
