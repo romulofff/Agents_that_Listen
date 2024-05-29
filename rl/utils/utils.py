@@ -66,7 +66,7 @@ def register_vizdoom_models(sound=True, blind=False, deaf=False):
         global_model_factory().register_encoder_factory(make_vizdoom_encoder)
 
 
-def register_custom_components(sound=True, blind=False):
+def register_custom_components(sound=True, blind=False, deaf=False):
     register_vizdoom_envs()
     register_custom_doom_env()
-    register_vizdoom_models(sound=sound, blind=blind)
+    register_vizdoom_models(sound=sound, blind=blind, deaf=deaf)
