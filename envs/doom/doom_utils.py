@@ -149,6 +149,15 @@ DOOM_ENVS = [
     ),
 
     DoomSpec(
+        "doom_eval_hgs_30med_audio_no_poison",
+        "eval_hgs_30med_audio_no_poison.cfg",  # use your custom cfg here
+        Discrete(1+4),
+        reward_scaling=1.0,
+        default_timeout=2100,
+        extra_wrappers=[(DoomGatheringRewardShaping, {}), SOUND_INPUT]
+    ),
+
+    DoomSpec(
         "doom_hg_normal_audio_no_poison",
         "hg_normal_audio_no_poison.cfg",  # use your custom cfg here
         Discrete(1+4),
