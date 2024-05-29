@@ -93,6 +93,87 @@ DOOM_ENVS = [
         default_timeout=2100,
         extra_wrappers=[(DoomGatheringRewardShaping, {}), SOUND_INPUT]
     ),
+
+    DoomSpec(
+        "doom_health_gathering_sound_2",
+        "health_gathering_sound_2.cfg",  # use your custom cfg here
+        Discrete(1+4),
+        reward_scaling=1.0,
+        default_timeout=2100,
+        extra_wrappers=[(DoomGatheringRewardShaping, {}), SOUND_INPUT]
+    ),
+
+    DoomSpec(
+        "doom_health_gathering_sound_medikit_only_single",
+        "health_gathering_sound_medikit_only_single.cfg",  # use your custom cfg here
+        Discrete(1+4),
+        reward_scaling=1.0,
+        default_timeout=4200,
+        extra_wrappers=[(DoomGatheringRewardShaping, {}), SOUND_INPUT]
+    ),
+
+    DoomSpec(
+        "doom_hg_15med_audio_no_poison",
+        "hg_15med_audio_no_poison.cfg",  # use your custom cfg here
+        Discrete(1+4),
+        reward_scaling=1.0,
+        default_timeout=2100,
+        extra_wrappers=[(DoomGatheringRewardShaping, {}), SOUND_INPUT]
+    ),
+
+    DoomSpec(
+        "doom_hg_20med_audio_no_poison",
+        "hg_20med_audio_no_poison.cfg",  # use your custom cfg here
+        Discrete(1+4),
+        reward_scaling=1.0,
+        default_timeout=2100,
+        extra_wrappers=[(DoomGatheringRewardShaping, {}), SOUND_INPUT]
+    ),
+
+    DoomSpec(
+        "doom_hg_30med_audio_no_poison",
+        "hg_30med_audio_no_poison.cfg",  # use your custom cfg here
+        Discrete(1+4),
+        reward_scaling=1.0,
+        default_timeout=2100,
+        extra_wrappers=[(DoomGatheringRewardShaping, {}), SOUND_INPUT]
+    ),
+
+    DoomSpec(
+        "doom_hgs_30med_audio_no_poison",
+        "hgs_30med_audio_no_poison.cfg",  # use your custom cfg here
+        Discrete(1+4),
+        reward_scaling=1.0,
+        default_timeout=2100,
+        extra_wrappers=[(DoomGatheringRewardShaping, {}), SOUND_INPUT]
+    ),
+
+    DoomSpec(
+        "doom_eval_hgs_30med_audio_no_poison",
+        "eval_hgs_30med_audio_no_poison.cfg",  # use your custom cfg here
+        Discrete(1+4),
+        reward_scaling=1.0,
+        default_timeout=2100,
+        extra_wrappers=[(DoomGatheringRewardShaping, {}), SOUND_INPUT]
+    ),
+
+    DoomSpec(
+        "doom_hg_normal_audio_no_poison",
+        "hg_normal_audio_no_poison.cfg",  # use your custom cfg here
+        Discrete(1+4),
+        reward_scaling=1.0,
+        default_timeout=2100,
+        extra_wrappers=[(DoomGatheringRewardShaping, {}), SOUND_INPUT]
+    ),
+
+    DoomSpec(
+        "doom_health_gathering_sound_medikit_only",
+        "health_gathering_sound_medikit_only.cfg",  # use your custom cfg here
+        Discrete(1+4),
+        reward_scaling=1.0,
+        default_timeout=2100,
+        extra_wrappers=[(DoomGatheringRewardShaping, {}), SOUND_INPUT]
+    ),
     
     DoomSpec(
         "doom_health_gathering_sound_splitted",
