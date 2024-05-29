@@ -171,6 +171,60 @@ class VizDoomHearingBlindEncoder(Encoder):
 
     def get_encoder_out_size(self) -> int:
         return self.encoder_out_size
+    
+
+class VizDoomDeafEncoder(Encoder):
+    """
+    audio_encoder_type: Type of audio encoder to use (available: "logmel", "fft", "samples")
+    """
+    def __init__(self, cfg, obs_space, audio_encoder_type="fft"):
+        super().__init__(cfg)
+        self.audio_encoder_type = audio_encoder_type
+        # TODO these parameters are fed to the audio buffer.
+        #      If they change in ViZDoom, remember to change them here!
+        # self.sample_rate = DEFAULT_SAMPLE_RATE
+        self.sample_rate = cfg.sampling_rate
+        # self.frameskip = DEFAULT_FRAMESKIP
+        self.frameskip = cfg.num_frames
+
+        self.basic_encoder = make_img_encoder(cfg, obs_space["obs"])
+        self.encoder_out_size = self.basic_encoder.get_out_size()
+        #bs_shape = obs_space["obs"].shape
+        self.sound_head = None
+        
+        if 'sound' in obs_space.keys():
+            if self.audio_encoder_type == "fft":
+                self.sound_head = nn.Sequential(
+                    SimpleFFTAudioEncoder(self.sample_rate, self.frameskip),
+                    nn.Flatten(),
+                    nn.ReLU()
+                )
+            else:
+                raise NotImplementedError("Audio encoder {} not implemented".format(self.audio_encoder_type))
+            sound_out_size = calc_num_elements(self.sound_head, obs_space["sound"].shape)
+            self.encoder_out_size += sound_out_size
+
+        log.debug('Policy head output size: %r', self.get_encoder_out_size())
+
+    def forward(self, obs_dict):
+        obs_dict['sound'] = torch.zeros(obs_dict['sound'].shape, device='cuda')
+        x = self.basic_encoder(obs_dict["obs"])
+        if self.sound_head is not None:
+
+            # Normalize to [-1, 1] (default for audio)
+            obs_dict['sound'].mul_(1.0 / 32767)
+
+            sound = self.sound_head(obs_dict['sound'].float())
+
+            x = torch.cat((x, sound), dim=1)
+
+        return x
+
+    def get_out_size(self) -> int:
+        return self.encoder_out_size
+
+    def get_encoder_out_size(self) -> int:
+        return self.encoder_out_size
 
 
 class LogMelAudioEncoder(nn.Module):
@@ -403,6 +457,9 @@ def make_vizdoom_fft_encoder(cfg, obs_space) -> Encoder:
 
 def make_vizdoom_hearing_blind_encoder(cfg, obs_space) -> Encoder:
     return VizDoomHearingBlindEncoder(cfg, obs_space, audio_encoder_type="fft")
+
+def make_vizdoom_deaf_encoder(cfg, obs_space) -> Encoder:
+    return VizDoomDeafEncoder(cfg, obs_space, audio_encoder_type="fft")
 
 def make_vizdoom_encoder(cfg, obs_space) -> Encoder:
     return VizdoomEncoder(cfg, obs_space)
