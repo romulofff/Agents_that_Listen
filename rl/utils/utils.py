@@ -14,7 +14,7 @@ from envs.doom.wrappers.scenario_wrappers.gathering_reward_shaping import \
 
 from envs.doom.doom_params import add_doom_env_args, doom_override_defaults
 from envs.doom.doom_utils import DOOM_ENVS, DoomSpec, make_doom_env_from_spec
-from envs.doom.doom_model import make_fft_encoder, make_vizdoom_fft_encoder, make_vizdoom_hearing_blind_encoder, make_vizdoom_encoder, make_vizdoom_deaf_encoder
+from envs.doom.doom_model import make_fft_encoder, make_vizdoom_blind_encoder, make_vizdoom_fft_encoder, make_vizdoom_hearing_blind_encoder, make_vizdoom_encoder, make_vizdoom_deaf_encoder
 
 # def register_custom_components():
 #     global_env_registry().register_env(
@@ -62,6 +62,8 @@ def register_vizdoom_models(sound=True, blind=False, deaf=False):
             global_model_factory().register_encoder_factory(make_vizdoom_deaf_encoder)
         else:
             global_model_factory().register_encoder_factory(make_vizdoom_fft_encoder)
+    elif blind:
+        global_model_factory().register_encoder_factory(make_vizdoom_blind_encoder)
     else:
         global_model_factory().register_encoder_factory(make_vizdoom_encoder)
 

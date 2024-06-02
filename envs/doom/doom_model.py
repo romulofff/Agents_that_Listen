@@ -51,6 +51,39 @@ class VizdoomEncoder(Encoder):
 
     def get_encoder_out_size(self) -> int:
         return self.encoder_out_size
+    
+class VizdoomBlindEncoder(Encoder):
+    def __init__(self, cfg, obs_space):
+        super().__init__(cfg)
+        # TODO these parameters are fed to the audio buffer.
+        #      If they change in ViZDoom, remember to change them here!
+        # self.sample_rate = DEFAULT_SAMPLE_RATE
+        self.sample_rate = cfg.sampling_rate
+        # self.frameskip = DEFAULT_FRAMESKIP
+        self.frameskip = cfg.num_frames
+
+        self.basic_encoder = make_img_encoder(cfg, obs_space["obs"])
+        self.encoder_out_size = self.basic_encoder.get_out_size()
+
+
+        self.measurements_head = None
+        
+
+    def forward(self, obs_dict):
+        obs = torch.zeros(obs_dict["obs"].shape, device='cuda')
+        x = self.basic_encoder(obs)
+
+        if self.measurements_head is not None:
+            measurements = self.measurements_head(obs_dict['measurements'].float())
+            x = torch.cat((x, measurements), dim=1)
+
+        return x
+    
+    def get_out_size(self) -> int:
+        return self.encoder_out_size
+
+    def get_encoder_out_size(self) -> int:
+        return self.encoder_out_size
 
 
 class VizdoomSoundEncoder(Encoder):
@@ -463,6 +496,9 @@ def make_vizdoom_deaf_encoder(cfg, obs_space) -> Encoder:
 
 def make_vizdoom_encoder(cfg, obs_space) -> Encoder:
     return VizdoomEncoder(cfg, obs_space)
+
+def make_vizdoom_blind_encoder(cfg, obs_space) -> Encoder:
+    return VizdoomBlindEncoder(cfg, obs_space)
 
 class VizdoomSoundEncoderSamples(VizdoomSoundEncoder):
     def __init__(self, cfg, obs_space, timing):

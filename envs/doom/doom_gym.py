@@ -13,7 +13,7 @@ import numpy as np
 import pygame
 from filelock import FileLock, Timeout
 from gymnasium.utils import seeding
-from vizdoom.vizdoom import ScreenResolution, DoomGame, Mode, AutomapMode, SamplingRate, DEFAULT_TICRATE
+from vizdoom.vizdoom import ScreenResolution, DoomGame, Mode, AutomapMode, SamplingRate, DEFAULT_TICRATE, GameVariable
 
 #from sample_factory.algo.utils.spaces.discretized import Discretized
 from sample_factory.algo.utils.spaces.discretized import Discretized
@@ -213,6 +213,13 @@ class VizdoomEnv(gym.Env):
         self.game.set_screen_resolution(self.screen_resolution)
         self.game.set_seed(self.curr_seed)
         self.game.add_game_args("+snd_efx 0")
+
+        self.game.add_available_game_variable(GameVariable.POSITION_X)
+        self.game.add_available_game_variable(GameVariable.POSITION_Y)
+        self.game.add_available_game_variable(GameVariable.POSITION_Z)
+
+        self.game.set_objects_info_enabled(True)
+        self.game.set_sectors_info_enabled(True)
 
         self.depth = self.game.is_depth_buffer_enabled()
         self.labels = self.game.is_labels_buffer_enabled()
